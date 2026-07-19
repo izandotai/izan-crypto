@@ -9,6 +9,14 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
+if(MINGW)
+    # Fully static: an executable may import Windows system libraries
+    # and NOTHING else — no compiler-runtime DLLs ride along. DEP and
+    # ASLR link bits set explicitly; mingw does not guarantee them.
+    add_link_options(-static)
+    add_link_options(-Wl,--nxcompat -Wl,--dynamicbase -Wl,--high-entropy-va)
+endif()
+
 include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
 
