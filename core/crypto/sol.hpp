@@ -61,8 +61,10 @@ bool sol_on_curve(std::span<const uint8_t, 32> bytes);
 
 // The associated token account: the canonical PDA of (owner, token
 // program, mint) under the ATA program — where a wallet's SPL balance
-// of that mint lives. Throws on bad addresses or (astronomically) if
-// no bump escapes the curve.
-std::string sol_ata(std::string_view owner, std::string_view mint);
+// of that mint lives. token2022 picks which token program seeds the
+// derivation; the two families never share an address. Throws on bad
+// addresses or (astronomically) if no bump escapes the curve.
+std::string sol_ata(
+    std::string_view owner, std::string_view mint, bool token2022 = false);
 
 }

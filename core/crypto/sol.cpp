@@ -144,7 +144,7 @@ bool sol_on_curve(std::span<const uint8_t, 32> bytes)
     return ge25519_unpack_negative_vartime(&p, bytes.data()) == 1;
 }
 
-std::string sol_ata(std::string_view owner, std::string_view mint)
+std::string sol_ata(std::string_view owner, std::string_view mint, bool token2022)
 {
     auto decode = [](std::string_view text) {
         std::array<uint8_t, 32> out {};
@@ -157,7 +157,11 @@ std::string sol_ata(std::string_view owner, std::string_view mint)
     };
     const auto owner_pk = decode(owner);
     const auto mint_pk = decode(mint);
-    const auto token_pg = decode("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    // The token program sits inside the PDA seed, so a mint under
+    // Token-2022 lands its ATA at a different address entirely.
+    const auto token_pg = decode(token2022
+            ? "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+            : "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const auto ata_pg = decode("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
     static constexpr char kMarker[] = "ProgramDerivedAddress";
     for (int bump = 255; bump >= 0; --bump) {

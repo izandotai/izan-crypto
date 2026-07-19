@@ -189,6 +189,18 @@ namespace {
         return pk;
     }
 
+    const std::array<uint8_t, 32>& token2022_program()
+    {
+        static const std::array<uint8_t, 32> pk = [] {
+            std::array<uint8_t, 32> out {};
+            std::size_t sz = out.size();
+            b58tobin(
+                out.data(), &sz, "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+            return out;
+        }();
+        return pk;
+    }
+
     const std::array<uint8_t, 32>& ata_program()
     {
         static const std::array<uint8_t, 32> pk = [] {
@@ -205,7 +217,7 @@ namespace {
 
 std::vector<uint8_t> encode_spl_transfer(std::string_view owner,
     std::string_view dest, std::string_view mint, uint64_t amount,
-    uint8_t decimals, std::span<const uint8_t, 32> blockhash)
+    uint8_t decimals, std::span<const uint8_t, 32> blockhash, bool token2022)
 {
     if (owner == dest)
         throw std::invalid_argument(
@@ -216,8 +228,9 @@ std::vector<uint8_t> encode_spl_transfer(std::string_view owner,
     const auto owner_pk = decode_address(owner);
     const auto dest_pk = decode_address(dest);
     const auto mint_pk = decode_address(mint);
-    const auto src_ata = decode_address(crypto::sol_ata(owner, mint));
-    const auto dst_ata = decode_address(crypto::sol_ata(dest, mint));
+    const auto src_ata
+        = decode_address(crypto::sol_ata(owner, mint, token2022));
+    const auto dst_ata = decode_address(crypto::sol_ata(dest, mint, token2022));
 
     std::vector<uint8_t> out;
     out.push_back(1); // one signature: the owner pays and signs
@@ -233,7 +246,7 @@ std::vector<uint8_t> encode_spl_transfer(std::string_view owner,
     put_key(dest_pk);             // 3 r
     put_key(mint_pk);             // 4 r
     out.insert(out.end(), 32, 0); // 5 r system program
-    put_key(token_program());     // 6 r
+    put_key(token2022 ? token2022_program() : token_program()); // 6 r
     put_key(ata_program());       // 7 r
     out.insert(out.end(), blockhash.begin(), blockhash.end());
     put_compact_u16(out, 2);
@@ -285,10 +298,14 @@ SplTransfer parse_spl_transfer(std::span<const uint8_t> message)
     for (int i = 0; i < 32; ++i)
         if (keys[5][std::size_t(i)] != 0)
             throw std::runtime_error("sol-tx: not the system program slot");
-    if (keys[6] != token_program() || keys[7] != ata_program())
+    if (keys[7] != ata_program())
         throw std::runtime_error("sol-tx: foreign program in the table");
 
     SplTransfer out;
+    if (keys[6] == token2022_program())
+        out.token2022 = true;
+    else if (keys[6] != token_program())
+        throw std::runtime_error("sol-tx: foreign program in the table");
     std::memcpy(out.blockhash.data(), take(32), 32);
     if (take_compact_u16(message, pos) != 2)
         throw std::runtime_error("sol-tx: expected exactly two instructions");
@@ -325,10 +342,13 @@ SplTransfer parse_spl_transfer(std::span<const uint8_t> message)
     out.dest = crypto::sol_address(keys[3]);
     out.mint = crypto::sol_address(keys[4]);
     // The ATA duel: the table's token accounts must be exactly the
-    // canonical ones for (wallet, mint) — nowhere else money could be
-    // quietly pointed.
-    if (decode_address(crypto::sol_ata(out.owner, out.mint)) != keys[1]
-        || decode_address(crypto::sol_ata(out.dest, out.mint)) != keys[2])
+    // canonical ones for (wallet, mint) under the token program the
+    // message itself named — nowhere else money could be quietly
+    // pointed.
+    if (decode_address(crypto::sol_ata(out.owner, out.mint, out.token2022))
+            != keys[1]
+        || decode_address(crypto::sol_ata(out.dest, out.mint, out.token2022))
+            != keys[2])
         throw std::runtime_error("sol-tx: token accounts off the canon");
     return out;
 }
