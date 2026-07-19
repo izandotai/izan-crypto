@@ -333,4 +333,53 @@ SplTransfer parse_spl_transfer(std::span<const uint8_t> message)
     return out;
 }
 
+std::span<const uint8_t> message_of(std::span<const uint8_t> tx)
+{
+    std::size_t pos = 0;
+    const uint16_t nsigs = take_compact_u16(tx, pos);
+    if (nsigs != 1)
+        throw std::runtime_error("sol-tx: expected exactly one signature slot");
+    if (tx.size() <= pos + 64)
+        throw std::runtime_error("sol-tx: transaction truncated");
+    return tx.subspan(pos + 64);
+}
+
+std::vector<uint8_t> inject_signature(
+    std::span<const uint8_t> tx, std::span<const uint8_t, 64> sig)
+{
+    const std::span<const uint8_t> msg = message_of(tx); // validates shape
+    std::vector<uint8_t> out;
+    out.reserve(1 + 64 + msg.size());
+    out.push_back(1);
+    out.insert(out.end(), sig.begin(), sig.end());
+    out.insert(out.end(), msg.begin(), msg.end());
+    return out;
+}
+
+std::string message_fee_payer(std::span<const uint8_t> message)
+{
+    std::size_t pos = 0;
+    if (message.empty())
+        throw std::runtime_error("sol-tx: empty message");
+    // Versioned messages carry a version byte with the high bit set;
+    // legacy messages start straight at the header.
+    if (message[0] & 0x80) {
+        if ((message[0] & 0x7f) != 0)
+            throw std::runtime_error("sol-tx: unknown message version");
+        pos = 1;
+    }
+    if (message.size() < pos + 3)
+        throw std::runtime_error("sol-tx: message truncated");
+    const uint8_t required = message[pos];
+    if (required != 1)
+        throw std::runtime_error("sol-tx: expected a single signer");
+    pos += 3;
+    const uint16_t keys = take_compact_u16(message, pos);
+    if (keys == 0 || message.size() < pos + 32)
+        throw std::runtime_error("sol-tx: message truncated");
+    std::array<uint8_t, 32> payer {};
+    std::memcpy(payer.data(), message.data() + pos, 32);
+    return crypto::sol_address(payer);
+}
+
 }

@@ -69,4 +69,15 @@ std::vector<uint8_t> encode_spl_transfer(std::string_view owner,
 // throw — including the ATA re-derivation duel.
 SplTransfer parse_spl_transfer(std::span<const uint8_t> message);
 
+// A serialized Solana transaction is signatures || message; these
+// split and stitch it. message_of throws on a shape that does not
+// carry exactly one required signature — ours.
+std::span<const uint8_t> message_of(std::span<const uint8_t> tx);
+std::vector<uint8_t> inject_signature(
+    std::span<const uint8_t> tx, std::span<const uint8_t, 64> sig);
+
+// The fee payer of a (possibly versioned) message — the account that
+// signs and pays. Base58, or a throw on anything unreadable.
+std::string message_fee_payer(std::span<const uint8_t> message);
+
 }
