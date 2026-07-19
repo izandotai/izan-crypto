@@ -67,4 +67,8 @@ bool sol_on_curve(std::span<const uint8_t, 32> bytes);
 std::string sol_ata(
     std::string_view owner, std::string_view mint, bool token2022 = false);
 
+// The Metaplex token-metadata PDA of a mint — where a classic SPL
+// token's name and symbol live on-chain.
+std::string sol_metadata_pda(std::string_view mint);
+
 }

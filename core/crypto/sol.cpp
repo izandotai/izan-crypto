@@ -183,4 +183,39 @@ std::string sol_ata(std::string_view owner, std::string_view mint, bool token202
     throw std::runtime_error("sol: no bump escapes the curve");
 }
 
+std::string sol_metadata_pda(std::string_view mint)
+{
+    auto decode = [](std::string_view text) {
+        std::array<uint8_t, 32> out {};
+        std::size_t sz = out.size();
+        if (!b58tobin(out.data(), &sz, std::string(text).c_str())
+            || sz != out.size())
+            throw std::invalid_argument(
+                "sol: not a solana address: " + std::string(text));
+        return out;
+    };
+    const auto mint_pk = decode(mint);
+    const auto meta_pg = decode("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
+    static constexpr char kSeed[] = "metadata";
+    static constexpr char kMarker[] = "ProgramDerivedAddress";
+    for (int bump = 255; bump >= 0; --bump) {
+        SHA256_CTX ctx;
+        sha256_Init(&ctx);
+        sha256_Update(
+            &ctx, reinterpret_cast<const uint8_t*>(kSeed), sizeof kSeed - 1);
+        sha256_Update(&ctx, meta_pg.data(), meta_pg.size());
+        sha256_Update(&ctx, mint_pk.data(), mint_pk.size());
+        const uint8_t b = uint8_t(bump);
+        sha256_Update(&ctx, &b, 1);
+        sha256_Update(&ctx, meta_pg.data(), meta_pg.size());
+        sha256_Update(&ctx, reinterpret_cast<const uint8_t*>(kMarker),
+            sizeof kMarker - 1);
+        std::array<uint8_t, 32> candidate;
+        sha256_Final(&ctx, candidate.data());
+        if (!sol_on_curve(candidate))
+            return sol_address(candidate);
+    }
+    throw std::runtime_error("sol: no bump escapes the curve");
+}
+
 }
