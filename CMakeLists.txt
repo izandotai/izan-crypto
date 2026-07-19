@@ -116,6 +116,7 @@ target_link_libraries(izan_secure INTERFACE sodium)
 add_library(izan_crypto STATIC
     core/crypto/bip39.cpp
     core/crypto/btc.cpp
+    core/crypto/eip712.cpp
     core/crypto/eth.cpp
     core/crypto/hd.cpp
     core/crypto/secret_import.cpp
@@ -162,6 +163,7 @@ if(PROJECT_IS_TOP_LEVEL)
         tests/abi_test.cpp
         tests/bip39_test.cpp
         tests/btc_test.cpp
+        tests/eip712_test.cpp
         tests/eth_test.cpp
         tests/hd_test.cpp
         tests/import_test.cpp
