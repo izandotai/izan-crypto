@@ -1,0 +1,124 @@
+#include "core/crypto/hd.hpp"
+
+#include <algorithm>
+
+#include <sodium.h>
+
+#include "core/crypto/btc.hpp"
+#include "core/crypto/detail/path.hpp"
+
+extern "C" {
+#include <curves.h>
+#include <ecdsa.h>
+#include <memzero.h>
+#include <secp256k1.h>
+}
+
+namespace izan::crypto {
+
+namespace {
+
+    constexpr uint32_t kVersionPrivate = 0x0488ade4; // xprv
+    constexpr uint32_t kVersionPublic = 0x0488b21e;  // xpub
+
+}
+
+std::optional<HdKey> HdKey::from_seed(std::span<const uint8_t> seed)
+{
+    HdKey key;
+    if (hdnode_from_seed(seed.data(), static_cast<int>(seed.size()),
+            SECP256K1_NAME, &key.node_)
+        == 0)
+        return std::nullopt;
+    return key;
+}
+
+std::optional<HdKey> HdKey::derive(std::string_view path) const
+{
+    HdKey key = *this;
+    const bool ok = detail::walk_path(path, [&](uint32_t index) {
+        // The parent fingerprint rides along for serialization.
+        key.parent_fingerprint_ = hdnode_fingerprint(&key.node_);
+        return hdnode_private_ckd(&key.node_, index) != 0;
+    });
+    if (!ok)
+        return std::nullopt;
+    return key;
+}
+
+std::string HdKey::xprv() const
+{
+    char buf[120];
+    hdnode_serialize_private(
+        &node_, parent_fingerprint_, kVersionPrivate, buf, sizeof buf);
+    std::string out(buf);
+    memzero(buf, sizeof buf);
+    return out;
+}
+
+std::string HdKey::xpub() const
+{
+    HDNode node = node_;
+    hdnode_fill_public_key(&node);
+    char buf[120];
+    hdnode_serialize_public(
+        &node, parent_fingerprint_, kVersionPublic, buf, sizeof buf);
+    std::string out(buf);
+    memzero(&node, sizeof node);
+    memzero(buf, sizeof buf);
+    return out;
+}
+
+std::array<uint8_t, 65> HdKey::public_key_uncompressed() const
+{
+    std::array<uint8_t, 65> out {};
+    ecdsa_get_public_key65(&secp256k1, node_.private_key, out.data());
+    return out;
+}
+
+std::array<uint8_t, 33> HdKey::public_key_compressed() const
+{
+    std::array<uint8_t, 33> out {};
+    ecdsa_get_public_key33(&secp256k1, node_.private_key, out.data());
+    return out;
+}
+
+std::optional<EcdsaSignature> HdKey::sign_digest(
+    std::span<const uint8_t, 32> digest) const
+{
+    uint8_t sig[64];
+    uint8_t parity = 0;
+    if (ecdsa_sign_digest(
+            &secp256k1, node_.private_key, digest.data(), sig, &parity, nullptr)
+        != 0)
+        return std::nullopt;
+    EcdsaSignature out;
+    std::copy(sig, sig + 32, out.r.begin());
+    std::copy(sig + 32, sig + 64, out.s.begin());
+    out.y_parity = parity;
+    memzero(sig, sizeof sig);
+    return out;
+}
+
+std::optional<std::array<uint8_t, 64>> HdKey::sign_taproot(
+    std::span<const uint8_t, 32> msg) const
+{
+    try {
+        std::array<uint8_t, 32> tweaked = bip341_tweak_seckey(
+            std::span<const uint8_t, 32>(node_.private_key, 32));
+        std::array<uint8_t, 32> aux {};
+        randombytes_buf(aux.data(), aux.size());
+        const auto sig = bip340_sign(tweaked, msg, aux);
+        memzero(tweaked.data(), tweaked.size());
+        return sig;
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+}
+
+HdKey::~HdKey()
+{
+    memzero(&node_, sizeof node_);
+}
+
+}
