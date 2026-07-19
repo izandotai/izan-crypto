@@ -51,19 +51,21 @@ std::vector<uint8_t> assemble_tx(
 // that disagrees — the accounts cannot be quietly rerouted.
 
 struct SplTransfer {
-    std::string owner;   // the signer and fee payer
-    std::string dest;    // the recipient WALLET (not the token account)
+    std::string owner;      // the signer and fee payer
+    std::string dest;       // the recipient WALLET (not the token account)
     std::string mint;
-    uint64_t amount = 0; // base units
+    uint64_t amount = 0;    // base units
     uint8_t decimals = 0;
     bool token2022 = false; // which token program the message named
     std::array<uint8_t, 32> blockhash {};
 };
 
-// Throws on owner == dest (the deduplicated table would change shape;
-// send to another wallet instead), or any unreadable address.
-// token2022 routes the transfer through the Token-2022 program — same
-// shape, different program key and ATA derivation.
+// owner == dest builds the self-transfer variant: a smaller table
+// (the single ATA appears once) and the token program's own
+// self-transfer short-circuit — nothing moves, only the fee is paid,
+// which is exactly what a send-lane test wants. token2022 routes
+// through the Token-2022 program — same shapes, different program key
+// and ATA derivation.
 std::vector<uint8_t> encode_spl_transfer(std::string_view owner,
     std::string_view dest, std::string_view mint, uint64_t amount,
     uint8_t decimals, std::span<const uint8_t, 32> blockhash,
