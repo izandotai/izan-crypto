@@ -175,8 +175,10 @@ if(PROJECT_IS_TOP_LEVEL)
         tests/eth_test.cpp
         tests/hd_test.cpp
         tests/import_test.cpp
+        tests/btc_tx_test.cpp
         tests/secure_bytes_test.cpp
         tests/sol_test.cpp
+        tests/sol_tx_test.cpp
         tests/tx_test.cpp
         tests/units_test.cpp
     )
