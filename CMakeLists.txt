@@ -1,15 +1,13 @@
 cmake_minimum_required(VERSION 3.28)
 project(izan-crypto LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-if(NOT CMAKE_BUILD_TYPE)
+if(PROJECT_IS_TOP_LEVEL AND NOT CMAKE_BUILD_TYPE)
     # -O0 miscompiles libstdc++ type_info comparisons under MinGW; an
     # optimized default is a load-bearing wall, not a preference.
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
 endif()
 
-if(MINGW)
+if(PROJECT_IS_TOP_LEVEL AND MINGW)
     # Fully static: an executable may import Windows system libraries
     # and NOTHING else — no compiler-runtime DLLs ride along. DEP and
     # ASLR link bits set explicitly; mingw does not guarantee them.
@@ -111,11 +109,13 @@ endif()
 # Exact integer money: U256 amounts and decimal conversion, header-only.
 add_library(izan_units INTERFACE)
 add_library(izan::units ALIAS izan_units)
+target_compile_features(izan_units INTERFACE cxx_std_23)
 target_include_directories(izan_units INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Guarded key-material container, header-only over libsodium.
 add_library(izan_secure INTERFACE)
 add_library(izan::secure ALIAS izan_secure)
+target_compile_features(izan_secure INTERFACE cxx_std_23)
 target_include_directories(izan_secure INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(izan_secure INTERFACE sodium)
 
@@ -132,6 +132,7 @@ add_library(izan_crypto STATIC
     core/crypto/sol.cpp
 )
 add_library(izan::crypto ALIAS izan_crypto)
+target_compile_features(izan_crypto PUBLIC cxx_std_23)
 target_include_directories(izan_crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(izan_crypto PUBLIC izan_trezor izan_secure)
 
@@ -141,6 +142,7 @@ add_library(izan_codec STATIC
     core/codec/rlp.cpp
 )
 add_library(izan::codec ALIAS izan_codec)
+target_compile_features(izan_codec PUBLIC cxx_std_23)
 target_include_directories(izan_codec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(izan_codec PUBLIC izan_units PRIVATE izan_crypto)
 
@@ -149,17 +151,20 @@ target_link_libraries(izan_codec PUBLIC izan_units PRIVATE izan_crypto)
 # strictness a signing plane needs to display what it signs.
 add_library(izan_ethtx STATIC domain/tx/eip1559.cpp)
 add_library(izan::ethtx ALIAS izan_ethtx)
+target_compile_features(izan_ethtx PUBLIC cxx_std_23)
 target_include_directories(izan_ethtx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(izan_ethtx PUBLIC izan_units izan_codec
     PRIVATE izan_crypto)
 
 add_library(izan_soltx STATIC domain/sol/sol_tx.cpp)
 add_library(izan::soltx ALIAS izan_soltx)
+target_compile_features(izan_soltx PUBLIC cxx_std_23)
 target_include_directories(izan_soltx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(izan_soltx PRIVATE izan_crypto)
 
 add_library(izan_btctx STATIC domain/btc/btc_tx.cpp)
 add_library(izan::btctx ALIAS izan_btctx)
+target_compile_features(izan_btctx PUBLIC cxx_std_23)
 target_include_directories(izan_btctx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(izan_btctx PRIVATE izan_crypto)
 
