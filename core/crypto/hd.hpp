@@ -7,6 +7,8 @@
 #include <string>
 #include <string_view>
 
+#include "core/crypto/secp256k1_key.hpp"
+
 extern "C" {
 // Upstream header trips C++20's volatile-parameter deprecation; not ours to
 // fix, not ours to drown in either.
@@ -22,12 +24,6 @@ namespace izan::crypto {
 // nonce (RFC 6979), canonical low s. y_parity selects which of the two
 // candidate public keys recovery yields — exactly the (v, r, s) an
 // EIP-1559 transaction carries.
-struct EcdsaSignature {
-    std::array<uint8_t, 32> r {};
-    std::array<uint8_t, 32> s {};
-    uint8_t y_parity = 0;
-};
-
 // BIP-32 hierarchical deterministic key on secp256k1. Holds private key
 // material; every instance wipes itself on destruction.
 class HdKey {

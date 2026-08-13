@@ -127,6 +127,7 @@ add_library(izan_crypto STATIC
     core/crypto/eip712.cpp
     core/crypto/eth.cpp
     core/crypto/hd.cpp
+    core/crypto/secp256k1_key.cpp
     core/crypto/secret_import.cpp
     core/crypto/sol.cpp
 )

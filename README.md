@@ -5,7 +5,7 @@ Multi-chain wallet cryptography for C++23, fully static, zero network.
 - **HD derivation**: BIP-39/32, SLIP-0010 (ed25519, hardened-only)
 - **Addresses**: EVM (EIP-55), Bitcoin (P2PKH / P2SH-P2WPKH / P2WPKH /
   P2TR / P2WSH / P2SH-P2WSH), Solana (base58, ATA/PDA derivation)
-- **Signatures**: secp256k1 (RFC 6979 low-s), BIP-340 schnorr with
+- **Signatures**: guarded raw secp256k1 keys (RFC 6979 low-s), BIP-340 schnorr with
   BIP-341 key tweaking, ed25519 (RFC 8032)
 - **Transaction grammar**: EIP-1559, Bitcoin segwit/legacy/taproot
   (BIP-143 / BIP-341 sighashes), Solana legacy messages and SPL
