@@ -119,22 +119,40 @@ target_compile_features(izan_secure INTERFACE cxx_std_23)
 target_include_directories(izan_secure INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(izan_secure INTERFACE sodium)
 
+add_library(izan_eip712 STATIC core/crypto/eip712.cpp)
+add_library(izan::eip712 ALIAS izan_eip712)
+target_compile_features(izan_eip712 PUBLIC cxx_std_23)
+target_include_directories(izan_eip712 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(izan_eip712 PUBLIC izan_units PRIVATE izan_trezor)
+
+# Keep raw secp256k1 keys behind an independently linkable authority target.
+add_library(izan_secp256k1 STATIC
+    core/crypto/eth.cpp
+    core/crypto/secp256k1_key.cpp
+)
+add_library(izan::secp256k1 ALIAS izan_secp256k1)
+target_compile_features(izan_secp256k1 PUBLIC cxx_std_23)
+target_include_directories(izan_secp256k1 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(izan_secp256k1
+    PUBLIC izan_secure
+    PRIVATE izan_eip712 izan_trezor
+)
+
 # The primitives: HD derivation, three families of addresses, schnorr,
 # secret recognition — all pinned to official vectors in tests/.
 add_library(izan_crypto STATIC
     core/crypto/bip39.cpp
     core/crypto/btc.cpp
-    core/crypto/eip712.cpp
-    core/crypto/eth.cpp
     core/crypto/hd.cpp
-    core/crypto/secp256k1_key.cpp
     core/crypto/secret_import.cpp
     core/crypto/sol.cpp
 )
 add_library(izan::crypto ALIAS izan_crypto)
 target_compile_features(izan_crypto PUBLIC cxx_std_23)
 target_include_directories(izan_crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(izan_crypto PUBLIC izan_trezor izan_secure)
+target_link_libraries(izan_crypto
+    PUBLIC izan_trezor izan_secure izan_eip712 izan_secp256k1
+)
 
 # ABI calldata and RLP: the EVM's wire grammar.
 add_library(izan_codec STATIC
