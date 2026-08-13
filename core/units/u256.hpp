@@ -132,9 +132,17 @@ struct U256 {
     U256 checked_mul_u64(uint64_t m) const
     {
         U256 r;
-        unsigned __int128 carry = 0;
+#if defined(__SIZEOF_INT128__)
+        // GCC/Clang expose this exact-width intermediate as an extension.
+        // Mark the declaration explicitly so strict consumers may retain
+        // -Wpedantic -Werror without suppressing warnings globally.
+        __extension__ using Wide = unsigned __int128;
+        Wide carry = 0;
+#else
+#error "U256::checked_mul_u64 requires a 128-bit unsigned intermediate"
+#endif
         for (int i = 31; i >= 0; --i) {
-            carry += static_cast<unsigned __int128>(be[i]) * m;
+            carry += static_cast<Wide>(be[i]) * m;
             r.be[i] = uint8_t(carry & 0xff);
             carry >>= 8;
         }
